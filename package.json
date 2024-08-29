@@ -1,0 +1,20 @@
+{
+    "name": "read-aloud-ffext",
+    "version": "1.0.0",
+    "description": "Read Aloud extention for Firefox",
+    "type": "module",
+    "main": "index.ts",
+    "scripts": {
+        "start": "tsc -p tsconfig.test.json && tsx index.ts",
+        "build": "tsc -p tsconfig.build.json && tsx index.ts"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/firefox-webext-browser": "^120.0.4",
+        "@types/node": "^22.5.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.5.4"
+    }
+}
