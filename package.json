@@ -5,13 +5,17 @@
     "type": "module",
     "main": "index.ts",
     "scripts": {
-        "test": "tsc -p tsconfig.test.json",
         "start": "tsx index.ts",
-        "build": "tsc -p tsconfig.build.json"
+        "start:test": "tsc -p tsconfig.test.json && tsx index.ts",
+        "build": "tsc -p tsconfig.build.json",
+        "build:start": "tsc -p tsconfig.build.json && tsx index.ts"
     },
     "keywords": [],
     "author": "",
     "license": "MIT",
+    "dependencies": {
+        "@mozilla/readability": "^0.5.0"
+    },
     "devDependencies": {
         "@types/firefox-webext-browser": "^120.0.4",
         "@types/node": "^22.5.0",

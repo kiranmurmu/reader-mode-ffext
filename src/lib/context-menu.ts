@@ -4,7 +4,7 @@ import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefo
 
 type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
 
-const menuItem = createMenuItem({
+const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
     contexts: ["link", "page"],
     documentUrlPatterns: ["*://*/*"]
@@ -18,13 +18,13 @@ function createMenuItem(props: MenuProps) {
 }
 
 function createContextMenu(this: Browser) {
-    console.log(`context menu has been created. id: ${menuItem.id}`);
+    console.log(`context menu has been created. id: ${openInReaderMode.id}`);
 
-    return this.contextMenus.create(menuItem);
+    return this.contextMenus.create(openInReaderMode);
 }
 
 function onContextMenuClicked(this: Browser, info: OnClickData, tab: Tab | undefined) {
-    if (info.menuItemId !== menuItem.id || !tab) return;
+    if (info.menuItemId !== openInReaderMode.id || !tab) return;
 
     if (tab.id) {
         this.tabs.update(tab.id, {
