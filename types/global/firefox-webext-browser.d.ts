@@ -1,3 +1,7 @@
+declare module "firefox-webext-browser" {
+    export type Browser = typeof globalThis.browser;
+}
+
 declare module "firefox-webext-browser/_manifest" {
     export = globalThis.browser._manifest;
 }

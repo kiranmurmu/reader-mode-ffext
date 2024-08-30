@@ -5,8 +5,9 @@
     "type": "module",
     "main": "index.ts",
     "scripts": {
-        "start": "tsc -p tsconfig.test.json && tsx index.ts",
-        "build": "tsc -p tsconfig.build.json && tsx index.ts"
+        "test": "tsc -p tsconfig.test.json",
+        "start": "tsx index.ts",
+        "build": "tsc -p tsconfig.build.json"
     },
     "keywords": [],
     "author": "",
