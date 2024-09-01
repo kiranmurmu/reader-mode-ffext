@@ -7,7 +7,7 @@ type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
 const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
     contexts: ["link", "page"],
-    documentUrlPatterns: ["*://*/*"]
+    documentUrlPatterns: ["*://*/*", "about:blank#/*"]
 });
 
 function createMenuItem(props: MenuProps) {
@@ -28,7 +28,7 @@ function onContextMenuClicked(this: Browser, info: OnClickData, tab: Tab | undef
 
     if (tab.id) {
         this.tabs.update(tab.id, {
-            url: "about:blank",
+            url: "about:blank#/https://example.com",
         });
         console.log(`updating tab: ${tab.id}`);
     }

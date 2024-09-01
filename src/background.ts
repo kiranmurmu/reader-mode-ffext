@@ -1,8 +1,14 @@
-import type { _OnInstalledDetails } from "firefox-webext-browser/runtime";
 import type { Browser } from "firefox-webext-browser";
+import type { _OnInstalledDetails } from "firefox-webext-browser/runtime";
 import { createContextMenu, onContextMenuClicked } from "./lib/context-menu.js";
 
-const browser: Browser = globalThis.browser;
+declare var chrome: Browser;
+declare var browser: Browser;
+
+/** if browser not found then use chrome */
+if (typeof browser == "undefined") {
+    globalThis.browser = chrome;
+}
 
 /** WebExtention Events */
 browser.runtime.onInstalled.addListener(createContextMenu.bind(browser));
