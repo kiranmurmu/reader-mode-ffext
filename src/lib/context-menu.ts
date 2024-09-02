@@ -6,8 +6,7 @@ type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
 
 const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
-    contexts: ["link", "page"],
-    documentUrlPatterns: ["*://*/*", "about:blank#/*"]
+    contexts: ["page"]
 });
 
 function createMenuItem(props: MenuProps) {
@@ -24,14 +23,42 @@ function createContextMenu(this: Browser) {
 }
 
 function onContextMenuClicked(this: Browser, info: OnClickData, tab: Tab | undefined) {
-    if (info.menuItemId !== openInReaderMode.id || !tab) return;
+    if (info.menuItemId !== openInReaderMode.id) return;
 
-    if (tab.id) {
-        this.tabs.update(tab.id, {
-            url: "about:blank#/https://example.com",
-        });
-        console.log(`updating tab: ${tab.id}`);
-    }
+    // TODO: add condition to check if content script is already executed or if in reader mode.
+
+    const executing = this.tabs.executeScript({
+        file: "lib/content-script.js"
+    });
+    
+    executing.then(onScriptExecuted.bind(this), (reason: unknown) => {
+        console.error(`Error executing content script. ${reason}`);
+    });
+}
+
+function onScriptExecuted(this: Browser, _result: unknown[]) {
+    const querying = this.tabs.query({
+        active: true,
+        currentWindow: true
+    });
+    
+    querying.then(onQueryResult.bind(this), (reason: unknown) => {
+        console.error(`Error quering browser tabs. ${reason}`);
+    });
+}
+
+function onQueryResult(this: Browser, tabs: Tab[]) {
+    const sending = this.tabs.sendMessage(tabs[0].id!, {
+        textContent: "This text content is from Read Alout Firefox web extension."
+    });
+    
+    const fulfilledCallback = (_value: unknown) => {
+        console.log("Message has been sent to content script");
+    };
+    
+    sending.then(fulfilledCallback, (reason: unknown) => {
+        console.log(`Error sending message to content script. ${reason}`);
+    });
 }
 
 export { createContextMenu, onContextMenuClicked };

@@ -59,7 +59,8 @@ const extension: WebExtensionManifest = {
     version,
     description,
     permissions: [
-        "contextMenus"
+        "contextMenus",
+        "activeTab"
     ],
     background: {
         "page": background.name,
