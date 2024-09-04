@@ -69,7 +69,7 @@ function handleScriptExecute(this: Browser, _result: unknown[]) {
 
 function handleTabsQuery(this: Browser, tabs: Tab[]) {
     const sending = this.tabs.sendMessage(tabs[0].id!, {
-        textContent: "This text content is from Read Alout Firefox web extension."
+        textContent: "This text content is from Reader Mode extension for Firefox."
     });
     
     const fulfilledCallback = (_value: unknown) => {

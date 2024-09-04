@@ -1,7 +1,7 @@
 import process from "node:process";
 import path from "node:path";
 import fs from "node:fs";
-import { name, version, description } from "./package.json";
+import { displayName, version, description } from "./package.json";
 import type { WebExtensionManifest } from "firefox-webext-browser/_manifest";
 
 type Info = { type: string; dir: string[]; out: string[]; };
@@ -55,7 +55,7 @@ const { background, manifest } = dataMap;
 
 const extension: WebExtensionManifest = {
     manifest_version: 2,
-    name,
+    name: displayName,
     version,
     description,
     permissions: [

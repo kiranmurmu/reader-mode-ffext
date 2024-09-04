@@ -19,7 +19,7 @@ declare var browser: Default.Browser;
         header.textContent = message.textContent;
         document.body.appendChild(header);
         
-        // TODO: update about:page url using `window.history`
+        // TODO: update about:blank page url using `window.history`
     }
 
     browser.runtime.onMessage.addListener(handleMessageEvent);

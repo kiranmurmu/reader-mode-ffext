@@ -1,7 +1,8 @@
 {
-    "name": "read-aloud-ffext",
+    "name": "reader-mode-ffext",
     "version": "1.0.0",
-    "description": "Read Aloud extention for Firefox",
+    "displayName": "Reader Mode",
+    "description": "Reader Mode extention for Firefox",
     "type": "module",
     "main": "index.ts",
     "scripts": {
