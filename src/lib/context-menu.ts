@@ -4,7 +4,8 @@ import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefo
 
 type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
 
-let currentTabId: number | undefined;
+let updateId: number | undefined;
+const aboutBlank = "about:blank";
 
 const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
@@ -30,16 +31,16 @@ function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | undefined)
     // TODO: add condition to check if content script is already executed or if in reader mode.
     
     const updating = this.tabs.update(tab.id!, {
-        url: "about:blank"
+        url: aboutBlank
     });
     
-    updating.then((tab: Tab) => (currentTabId = tab.id, undefined), (reason: unknown) => {
+    updating.then((tab: Tab) => void (updateId = tab.id), (reason: unknown) => {
         console.error(`Error updating browser tab. ${reason}`);
     });
 }
 
 function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedChangeInfo, tab: Tab) {
-    if (tabId !== currentTabId || changeInfo.status !== "complete") return;
+    if (tabId !== updateId || tab.url !== aboutBlank || changeInfo.status !== "complete") return;
 
     console.log(`${tab.url} page is updated!`);
     console.log(changeInfo);
