@@ -1,53 +1,73 @@
 import type { Browser } from "firefox-webext-browser";
-import type { Tab } from "firefox-webext-browser/tabs";
+import type { _OnUpdatedChangeInfo, Tab } from "firefox-webext-browser/tabs";
 import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefox-webext-browser/contextMenus";
 
 type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
 
+let currentTabId: number | undefined;
+
 const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
-    contexts: ["page"]
+    contexts: ["page"],
+    documentUrlPatterns: ["*://*/*"]
 });
 
 function createMenuItem(props: MenuProps) {
     type MenuItem = MenuProps & { id: string };
 
-    /** Returns an object with id. Id looks something like this: menu-id:menu-title */
     return { ...props, id: `menu-id:${props.title.replace(/\W+/g, "-").toLowerCase()}` } as MenuItem;
 }
 
-function createContextMenu(this: Browser) {
+function handleMenuCreate(this: Browser) {
     console.log(`context menu has been created. id: ${openInReaderMode.id}`);
 
     return this.contextMenus.create(openInReaderMode);
 }
 
-function onContextMenuClicked(this: Browser, info: OnClickData, tab: Tab | undefined) {
-    if (info.menuItemId !== openInReaderMode.id) return;
+function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | undefined) {
+    if (info.menuItemId !== openInReaderMode.id || !tab) return;
 
     // TODO: add condition to check if content script is already executed or if in reader mode.
-
-    const executing = this.tabs.executeScript({
-        file: "lib/content-script.js"
+    
+    const updating = this.tabs.update(tab.id!, {
+        url: "about:blank"
     });
     
-    executing.then(onScriptExecuted.bind(this), (reason: unknown) => {
+    updating.then((tab: Tab) => (currentTabId = tab.id, undefined), (reason: unknown) => {
+        console.error(`Error updating browser tab. ${reason}`);
+    });
+}
+
+function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedChangeInfo, tab: Tab) {
+    if (tabId !== currentTabId || changeInfo.status !== "complete") return;
+
+    console.log(`${tab.url} page is updated!`);
+    console.log(changeInfo);
+    console.log(tab);
+    
+    const executing = this.tabs.executeScript(tabId, {
+        file: "lib/content-script.js",
+        matchAboutBlank: true,
+        runAt: "document_start"
+    });
+
+    executing.then(handleScriptExecute.bind(this), (reason: unknown) => {
         console.error(`Error executing content script. ${reason}`);
     });
 }
 
-function onScriptExecuted(this: Browser, _result: unknown[]) {
+function handleScriptExecute(this: Browser, _result: unknown[]) {
     const querying = this.tabs.query({
         active: true,
         currentWindow: true
     });
     
-    querying.then(onQueryResult.bind(this), (reason: unknown) => {
+    querying.then(handleTabsQuery.bind(this), (reason: unknown) => {
         console.error(`Error quering browser tabs. ${reason}`);
     });
 }
 
-function onQueryResult(this: Browser, tabs: Tab[]) {
+function handleTabsQuery(this: Browser, tabs: Tab[]) {
     const sending = this.tabs.sendMessage(tabs[0].id!, {
         textContent: "This text content is from Read Alout Firefox web extension."
     });
@@ -61,4 +81,4 @@ function onQueryResult(this: Browser, tabs: Tab[]) {
     });
 }
 
-export { createContextMenu, onContextMenuClicked };
+export { handleMenuCreate, handleMenuClick, handleTabsUpdate };
