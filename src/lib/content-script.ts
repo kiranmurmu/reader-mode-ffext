@@ -5,7 +5,7 @@ declare var chrome: Default.Browser;
 declare var browser: Default.Browser;
 
 (function () {
-    type MessageData = { textContent: string };
+    type MessageData = { text?: string; url?: string; title?: string; favIconUrl?: string; };
     type ResponseCallback = (response: unknown) => void;
 
     if (typeof browser == "undefined") {
@@ -13,13 +13,23 @@ declare var browser: Default.Browser;
     }
 
     function handleMessageEvent(message: MessageData, _sender: Runtime.MessageSender, _sendResponse?: ResponseCallback) {
-        document.body.textContent = "";
+        location.hash = `!${message.url}`;
 
-        let header = document.createElement("h1");
-        header.textContent = message.textContent;
+        document.title = message.title!;
+        document.body.textContent = "";
+        
+        if (message.favIconUrl) {
+            const favIconUrl = document.createElement("link");
+            favIconUrl.rel = "shortcut icon";
+            favIconUrl.href = message.favIconUrl;
+            document.head.appendChild(favIconUrl);
+        }
+
+        const header = document.createElement("h1");
+        header.textContent = message.text!;
         document.body.appendChild(header);
         
-        // TODO: update about:blank page url using `window.history`
+        console.log(`reader mode: ${message.url}`);
     }
 
     browser.runtime.onMessage.addListener(handleMessageEvent);

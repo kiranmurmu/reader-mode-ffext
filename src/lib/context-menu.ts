@@ -3,9 +3,12 @@ import type { _OnUpdatedChangeInfo, Tab } from "firefox-webext-browser/tabs";
 import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefox-webext-browser/contextMenus";
 
 type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
+type UpdateInfo = { id?: number; title?: string; url?: string; favIconUrl?: string; };
 
-let updateId: number | undefined;
+let updateInfo: UpdateInfo = {};
 const aboutBlank = "about:blank";
+
+// TODO: add readability feature
 
 const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
@@ -28,24 +31,29 @@ function handleMenuCreate(this: Browser) {
 function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | undefined) {
     if (info.menuItemId !== openInReaderMode.id || !tab) return;
 
-    // TODO: add condition to check if content script is already executed or if in reader mode.
-    
+    updateInfo = {
+        id: tab.id,
+        title: tab.title,
+        url: tab.url!.replace(/\/$/g, ""),
+        favIconUrl: tab.favIconUrl
+    };
+
     const updating = this.tabs.update(tab.id!, {
         url: aboutBlank
     });
     
-    updating.then((tab: Tab) => void (updateId = tab.id), (reason: unknown) => {
+    updating.catch((reason: unknown) => {
         console.error(`Error updating browser tab. ${reason}`);
     });
 }
 
 function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedChangeInfo, tab: Tab) {
-    if (tabId !== updateId || tab.url !== aboutBlank || changeInfo.status !== "complete") return;
-
-    console.log(`${tab.url} page is updated!`);
-    console.log(changeInfo);
-    console.log(tab);
+    if (tabId !== updateInfo["id"] || tab.url !== aboutBlank || changeInfo.status !== "complete") {
+        return;
+    }
     
+    delete updateInfo["id"];
+
     const executing = this.tabs.executeScript(tabId, {
         file: "lib/content-script.js",
         matchAboutBlank: true,
@@ -70,7 +78,8 @@ function handleScriptExecute(this: Browser, _result: unknown[]) {
 
 function handleTabsQuery(this: Browser, tabs: Tab[]) {
     const sending = this.tabs.sendMessage(tabs[0].id!, {
-        textContent: "This text content is from Reader Mode extension for Firefox."
+        ...updateInfo,
+        text: "This text content is from Reader Mode extension for Firefox."
     });
     
     const fulfilledCallback = (_value: unknown) => {
@@ -78,8 +87,8 @@ function handleTabsQuery(this: Browser, tabs: Tab[]) {
     };
     
     sending.then(fulfilledCallback, (reason: unknown) => {
-        console.log(`Error sending message to content script. ${reason}`);
+        console.error(`Error sending message to content script. ${reason}`);
     });
 }
 
-export { handleMenuCreate, handleMenuClick, handleTabsUpdate };
+export { handleMenuCreate, handleMenuClick, handleTabsUpdate, aboutBlank };

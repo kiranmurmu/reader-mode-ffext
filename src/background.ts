@@ -1,6 +1,6 @@
 import type { Browser } from "firefox-webext-browser";
 import type { _OnInstalledDetails } from "firefox-webext-browser/runtime";
-import { handleMenuCreate, handleMenuClick, handleTabsUpdate } from "./lib/context-menu.js";
+import { handleMenuCreate, handleMenuClick, handleTabsUpdate, aboutBlank } from "./lib/context-menu.js";
 import type { _OnUpdatedChangeInfo } from "firefox-webext-browser/tabs";
 import type { _OnBeforeRequestDetails } from "firefox-webext-browser/webRequest";
 
@@ -18,5 +18,6 @@ browser.runtime.onStartup.addListener(handleMenuCreate.bind(browser));
 browser.contextMenus.onClicked.addListener(handleMenuClick.bind(browser));
 
 browser.tabs.onUpdated.addListener(handleTabsUpdate.bind(browser), {
-    properties: ["status"]
+    properties: ["status"],
+    urls: [aboutBlank]
 });
