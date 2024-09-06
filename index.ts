@@ -4,8 +4,10 @@ import fs from "node:fs";
 import { displayName, version, description } from "./package.json";
 import type { WebExtensionManifest } from "firefox-webext-browser/_manifest";
 
-type Info = { type: string; dir: string[]; out: string[]; };
-type Data = Info & { name: string; path: string; source: string; target: string; };
+type Info = { fileType: string; sourceDir: string[]; targetDir: string[]; };
+type Data = Pick<Info, "targetDir"> & { fileName: string; sourceFile: string; targetFile: string; };
+
+const currentDir = process.cwd();
 
 class DataMap<Key extends string> extends Map<Key, Data> {
     constructor(entries: { [_ in Key]: Info }) {
@@ -19,39 +21,54 @@ class DataMap<Key extends string> extends Map<Key, Data> {
 }
 
 function toMapEntry<Key>(entry: { [_: string]: Info; }) {
-    const value = Object.entries<Info>(entry);
-    const cwdir = process.cwd();
-    
-    const callback = ([key, data]: [string, Info]) => {
-        const name = `${key}.${data.type}`;
+    const entries = Object.entries<Info>(entry);
 
-        const info: Omit<Data, keyof Info> = {
-            name: name,
-            path: path.join(cwdir, ...data.out),
-            source: path.join(cwdir, ...data.dir, name),
-            target: path.join(cwdir, ...data.out, name),
+    const callback = ([keyName, { fileType, sourceDir, targetDir }]: [string, Info]) => {
+        const fileName = `${keyName}.${fileType}`;
+        const dataObj: Data = {
+            fileName,
+            targetDir,
+            sourceFile: path.join(currentDir, ...sourceDir, fileName),
+            targetFile: path.join(currentDir, ...targetDir, fileName),
         };
 
-        return [key, { ...data, ...info }] as [Key, Data];
+        return [keyName, dataObj] as [Key, Data];
     }
 
-    return value.map(callback);
+    return entries.map(callback);
+};
+
+function createDirectory({ targetDir }: Data) {
+    let parentDir = currentDir;
+
+    for (const dirName of targetDir) {
+        parentDir = path.join(parentDir, dirName);
+
+        if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir);
+
+            console.log(`> make directory:\t${path.relative(currentDir, parentDir)}`);
+        }
+    }
 };
 
 const dataMap = new DataMap({
     "manifest": {
-        type: "json",
-        dir: [],
-        out: ["build"]
+        fileType: "json",
+        sourceDir: [],
+        targetDir: ["build"]
     },
     "background": {
-        type: "html",
-        dir: ["src"],
-        out: ["build"]
+        fileType: "html",
+        sourceDir: ["src"],
+        targetDir: ["build"]
+    },
+    "Readability": {
+        fileType: "js",
+        sourceDir: ["node_modules", "@mozilla", "readability"],
+        targetDir: ["build", "lib"]
     }
 }).toObject();
-
-const { background, manifest } = dataMap;
 
 const extension: WebExtensionManifest = {
     manifest_version: 2,
@@ -64,28 +81,31 @@ const extension: WebExtensionManifest = {
         "tabs"
     ],
     background: {
-        "page": background.name,
+        "page": dataMap["background"].fileName,
     }
 };
 
-Object.values(dataMap).forEach((data) => {
-    if (!fs.existsSync(data.path)) {
-        fs.mkdirSync(data.path);
-    };
-});
+(Object.entries(dataMap) as [keyof typeof dataMap, Data][]).forEach(([key, data]) => {
+    createDirectory(data);
 
-fs.writeFile(manifest.target, JSON.stringify(extension), (error) => {
-    if (error) {
-        console.error(`  ${error.message}`);
-    } else {
-        console.log(`  file created: ${manifest.target}`);
+    if (key === "manifest") {
+        fs.writeFile(data.targetFile, JSON.stringify(extension), (error) => {
+            if (error) {
+                console.error(`> ${error.message}`);
+            }
+            else {
+                console.log(`> write file:\t\t${path.relative(currentDir, data.targetFile)}`);
+            }
+        });
     }
-});
-
-fs.copyFile(background.source, background.target, (error) => {
-    if (error) {
-        console.error(`  ${error.message}`);
-    } else {
-        console.log(`  file copied: ${background.target}`);
+    else {
+        fs.copyFile(data.sourceFile, data.targetFile, (error) => {
+            if (error) {
+                console.error(`> ${error.message}`);
+            }
+            else {
+                console.log(`> copy file:\t\t${path.relative(currentDir, data.targetFile)}`);
+            }
+        });
     }
 });
