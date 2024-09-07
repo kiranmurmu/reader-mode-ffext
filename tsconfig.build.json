@@ -6,6 +6,7 @@
         "outDir": "build",
         "forceConsistentCasingInFileNames": true,
         "strict": true,
+        "alwaysStrict": true,
         "skipLibCheck": true
     },
     "include": [
