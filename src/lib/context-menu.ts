@@ -55,7 +55,7 @@ function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedCh
     delete updateInfo["id"];
 
     const executing = this.tabs.executeScript(tabId, {
-        file: "lib/content-script.js",
+        file: "lib/reader-mode.js",
         matchAboutBlank: true,
         runAt: "document_start"
     });
