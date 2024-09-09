@@ -12,7 +12,7 @@ declare var browser: Default.Browser;
         globalThis.browser = chrome;
     }
 
-    function handleMessageEvent(message: MessageData, _sender: Runtime.MessageSender, _sendResponse?: ResponseCallback) {
+    function handleMessageEvent(message: MessageData, _sender: Runtime.MessageSender, sendResponse: ResponseCallback) {
         location.hash = `!${message.url}`;
 
         document.title = message.title!;
@@ -30,6 +30,8 @@ declare var browser: Default.Browser;
         document.body.appendChild(header);
         
         console.log(`reader mode: ${message.url}`);
+
+        sendResponse(true);
     }
 
     browser.runtime.onMessage.addListener(handleMessageEvent);

@@ -28,67 +28,79 @@ function handleMenuCreate(this: Browser) {
     return this.contextMenus.create(openInReaderMode);
 }
 
-function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | undefined) {
+async function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | undefined) {
     if (info.menuItemId !== openInReaderMode.id || !tab) return;
 
-    updateInfo = {
-        id: tab.id,
-        title: tab.title,
-        url: tab.url!.replace(/\/$/g, ""),
-        favIconUrl: tab.favIconUrl
-    };
+    try {
+        updateInfo = {
+            id: tab.id,
+            title: tab.title,
+            url: tab.url!.replace(/\/$/g, ""),
+            favIconUrl: tab.favIconUrl
+        };
 
-    const updating = this.tabs.update(tab.id!, {
-        url: aboutBlank
-    });
-    
-    updating.catch((reason: unknown) => {
-        console.error(`Error updating browser tab. ${reason}`);
-    });
+        await this.tabs.update(tab.id!, {
+            url: aboutBlank
+        });
+    }
+    catch (error) {
+        console.error(`Error updating browser tab. ${error}`);
+    }
 }
 
-function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedChangeInfo, tab: Tab) {
+async function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedChangeInfo, tab: Tab) {
     if (tabId !== updateInfo["id"] || tab.url !== aboutBlank || changeInfo.status !== "complete") {
         return;
     }
     
-    delete updateInfo["id"];
+    try {
+        const executionResult = await this.tabs.executeScript(tabId, {
+            file: "lib/reader-mode.js",
+            matchAboutBlank: true,
+            runAt: "document_start"
+        });
 
-    const executing = this.tabs.executeScript(tabId, {
-        file: "lib/reader-mode.js",
-        matchAboutBlank: true,
-        runAt: "document_start"
-    });
-
-    executing.then(handleScriptExecute.bind(this), (reason: unknown) => {
-        console.error(`Error executing content script. ${reason}`);
-    });
+        handleScriptExecute.call(this, executionResult);
+    }
+    catch (error) {
+        console.error(`Error executing content script. ${error}`);
+    }
+    finally {
+        delete updateInfo["id"];
+    }
 }
 
-function handleScriptExecute(this: Browser, _result: unknown[]) {
-    const querying = this.tabs.query({
-        active: true,
-        currentWindow: true
-    });
-    
-    querying.then(handleTabsQuery.bind(this), (reason: unknown) => {
-        console.error(`Error quering browser tabs. ${reason}`);
-    });
+async function handleScriptExecute(this: Browser, _result: unknown[]) {
+    try {
+        const queryResult = await this.tabs.query({
+            active: true,
+            currentWindow: true
+        });
+
+        handleTabsQuery.call(this, queryResult);
+    }
+    catch (error) {
+        console.error(`Error quering browser tabs. ${error}`);
+    }
 }
 
-function handleTabsQuery(this: Browser, tabs: Tab[]) {
-    const sending = this.tabs.sendMessage(tabs[0].id!, {
-        ...updateInfo,
-        text: "This text content is from Reader Mode extension for Firefox."
-    });
-    
-    const fulfilledCallback = (_value: unknown) => {
-        console.log("Message has been sent to content script");
-    };
-    
-    sending.then(fulfilledCallback, (reason: unknown) => {
-        console.error(`Error sending message to content script. ${reason}`);
-    });
+async function handleTabsQuery(this: Browser, tabs: Tab[]) {
+    try {
+        const messageResult = await this.tabs.sendMessage(tabs[0].id!, {
+            ...updateInfo,
+            text: "This text content is from Reader Mode extension for Firefox."
+        });
+
+        if (typeof messageResult != "undefined") {
+            console.log("Message has been sent to content script");
+        }
+        else {
+            console.warn("Could not send message to content script");
+        }
+    }
+    catch (error) {
+        console.error(`Error sending message to content script. ${error}`);
+    }
 }
 
 export { handleMenuCreate, handleMenuClick, handleTabsUpdate, aboutBlank };
