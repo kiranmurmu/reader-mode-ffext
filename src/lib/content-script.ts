@@ -32,24 +32,16 @@ declare var Readability: Mozilla.Readability<string> & {
     }
 
     if (typeof Readability == "undefined") return;
-    const article = new Readability(document.cloneNode(true)).parse();
 
-    browser.runtime.sendMessage({ article });
-    
     function getArticle(): Article {
         return new Readability(document.cloneNode(true)).parse();
     }
 
-    function handleMessageEvent(message: MessageData, _sender: Runtime.MessageSender, _sendResponse?: ResponseCallback) {
-        switch (message.command) {
-            case "article":
-                browser.runtime.sendMessage({ article }).then(
-                    (value: unknown) => {},
-                    (reason: unknown) => {}
-                );
-                break;
-            default:
-                break;
+    function handleMessageEvent(message: MessageData, _sender: Runtime.MessageSender, sendResponse: ResponseCallback) {
+        if (message.command == "article") {
+            sendResponse({
+                article: getArticle()
+            });
         }
     }
 

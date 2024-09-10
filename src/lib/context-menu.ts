@@ -3,12 +3,10 @@ import type { _OnUpdatedChangeInfo, Tab } from "firefox-webext-browser/tabs";
 import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefox-webext-browser/contextMenus";
 
 type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
-type UpdateInfo = { id?: number; title?: string; url?: string; favIconUrl?: string; };
+type UpdateInfo = { id?: number; title?: string; url?: string; favIconUrl?: string; article?: object | null; };
 
 let updateInfo: UpdateInfo = {};
 const aboutBlank = "about:blank";
-
-// TODO: add readability feature
 
 const openInReaderMode = createMenuItem({
     title: "Open in Reader Mode",
@@ -32,16 +30,40 @@ async function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | unde
     if (info.menuItemId !== openInReaderMode.id || !tab) return;
 
     try {
-        updateInfo = {
-            id: tab.id,
-            title: tab.title,
-            url: tab.url!.replace(/\/$/g, ""),
-            favIconUrl: tab.favIconUrl
-        };
+        try {
+            let executionResult: Array<object> = await this.tabs.executeScript(tab.id!, {
+                file: "lib/Readability.js"
+            });
 
-        await this.tabs.update(tab.id!, {
-            url: aboutBlank
-        });
+            if (!executionResult.length) throw new Error("ERROR: Failed to execute script.");
+
+            executionResult = await this.tabs.executeScript(tab.id!, {
+                file: "lib/content-script.js"
+            });
+
+            if (!executionResult.length) throw new Error("ERROR: Failed to execute script.");
+
+            const response: { article: object; } = await this.tabs.sendMessage(tab.id!, {
+                command: "article"
+            });
+            
+            if (typeof response != "object") throw new Error("ERROR: Failed to extract article.");
+
+            updateInfo = {
+                id: tab.id,
+                title: tab.title,
+                url: tab.url!.replace(/\/$/g, ""),
+                favIconUrl: tab.favIconUrl,
+                article: response.article
+            };
+
+            await this.tabs.update(tab.id!, {
+                url: aboutBlank
+            });
+        }
+        catch (error) {
+            console.error(`Error executing content script. ${error}`);
+        }
     }
     catch (error) {
         console.error(`Error updating browser tab. ${error}`);
