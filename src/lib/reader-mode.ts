@@ -5,7 +5,7 @@ declare var chrome: Default.Browser;
 declare var browser: Default.Browser;
 
 (function () {
-    type MessageData = { text?: string; url?: string; title?: string; favIconUrl?: string; article?: Article };
+    type MessageData = { title?: string; url?: string; favIconUrl?: string; article?: Article };
     type ResponseCallback = (response: unknown) => void;
     type Article = {
         title: string;
@@ -39,15 +39,15 @@ declare var browser: Default.Browser;
 
         const { content, title } = message.article!;
 
-        const header = document.createElement("h1");
-        header.textContent = title;
-        document.body.appendChild(header);
+        const htmlHeadingElement = document.createElement("h1");
+        htmlHeadingElement.textContent = title;
+        document.body.appendChild(htmlHeadingElement);
         
-        const template = document.createElement("template");
-        template.innerHTML = content;
-        document.body.appendChild(template.firstChild!);
+        const htmlDivElement = document.createElement("div");
+        htmlDivElement.innerHTML = content;
+        document.body.appendChild(htmlDivElement.firstChild!);
 
-        console.log(`reader mode: ${message.url}`);
+        console.info(`reader mode: ${message.url}`);
 
         sendResponse(true);
     }
