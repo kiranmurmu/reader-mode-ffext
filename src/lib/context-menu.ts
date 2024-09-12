@@ -3,9 +3,9 @@ import type { _OnUpdatedChangeInfo, Tab } from "firefox-webext-browser/tabs";
 import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefox-webext-browser/contextMenus";
 
 type MenuProps = Omit<CreateProps, "id" | "title"> & { title: string };
-type UpdateInfo = { id?: number; title?: string; url?: string; favIconUrl?: string; article?: object | null; };
+type TempInfo = { title?: string; url?: string; favIconUrl?: string; article?: object; };
 
-let updateInfo: UpdateInfo = {};
+let tempInfo: { [index: number]: TempInfo } = {};
 const aboutBlank = "about:blank";
 
 const openInReaderMode = createMenuItem({
@@ -21,7 +21,7 @@ function createMenuItem(props: MenuProps) {
 }
 
 function handleMenuCreate(this: Browser) {
-    console.log(`context menu has been created. id: ${openInReaderMode.id}`);
+    console.info(`context menu has been created. id: ${openInReaderMode.id}`);
 
     return this.contextMenus.create(openInReaderMode);
 }
@@ -30,98 +30,75 @@ async function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | unde
     if (info.menuItemId !== openInReaderMode.id || !tab) return;
 
     try {
-        try {
-            let executionResult: Array<object> = await this.tabs.executeScript(tab.id!, {
-                file: "lib/Readability.js"
-            });
-
-            if (!executionResult.length) throw new Error("ERROR: Failed to execute script.");
-
-            executionResult = await this.tabs.executeScript(tab.id!, {
-                file: "lib/content-script.js"
-            });
-
-            if (!executionResult.length) throw new Error("ERROR: Failed to execute script.");
-
-            const response: { article: object; } = await this.tabs.sendMessage(tab.id!, {
-                command: "article"
-            });
-            
-            if (typeof response != "object") throw new Error("ERROR: Failed to extract article.");
-
-            updateInfo = {
-                id: tab.id,
-                title: tab.title,
-                url: tab.url!.replace(/\/$/g, ""),
-                favIconUrl: tab.favIconUrl,
-                article: response.article
-            };
-
-            await this.tabs.update(tab.id!, {
-                url: aboutBlank
+        const { id: tabId, title, url: _url, favIconUrl } = tab;
+        const url = _url!.replace(/\/$/g, "");
+        const files = ["lib/Readability.js", "lib/content-script.js"];
+        
+        for (const value of files) {
+            await this.tabs.executeScript(tabId!, {
+                file: value
             });
         }
-        catch (error) {
-            console.error(`Error executing content script. ${error}`);
+
+        const { article } = await this.tabs.sendMessage(tabId!, {
+            command: "article"
+        }) as { article: object; };
+
+        if (typeof article != "object") {
+            throw new Error("Failed to extract article.");
         }
+
+        tempInfo[tabId!] = { title, url, favIconUrl, article };
+
+        await this.tabs.update(tabId!, {
+            url: aboutBlank
+        });
     }
     catch (error) {
-        console.error(`Error updating browser tab. ${error}`);
+        if (!(error instanceof Error)) throw error;
+        console.error(`Error updating browser tab. ${error.message}`);
     }
 }
 
 async function handleTabsUpdate(this: Browser, tabId: number, changeInfo: _OnUpdatedChangeInfo, tab: Tab) {
-    if (tabId !== updateInfo["id"] || tab.url !== aboutBlank || changeInfo.status !== "complete") {
+    if (typeof tempInfo[tabId] != "object" || tab.url !== aboutBlank || changeInfo.status !== "complete") {
         return;
     }
-    
+
     try {
-        const executionResult = await this.tabs.executeScript(tabId, {
+        await this.tabs.executeScript(tabId, {
             file: "lib/reader-mode.js",
             matchAboutBlank: true,
             runAt: "document_start"
         });
 
-        handleScriptExecute.call(this, executionResult);
+        await handleSendMessage.call(this, tabId);
     }
     catch (error) {
-        console.error(`Error executing content script. ${error}`);
+        if (!(error instanceof Error)) throw error;
+        console.error(`Error executing content script. ${error.message}`);
     }
     finally {
-        delete updateInfo["id"];
+        delete tempInfo[tabId];
     }
 }
 
-async function handleScriptExecute(this: Browser, _result: unknown[]) {
+async function handleSendMessage(this: Browser, tabId: number) {
     try {
-        const queryResult = await this.tabs.query({
-            active: true,
-            currentWindow: true
+        const response = await this.tabs.sendMessage(tabId, {
+            ...tempInfo[tabId]
         });
 
-        handleTabsQuery.call(this, queryResult);
-    }
-    catch (error) {
-        console.error(`Error quering browser tabs. ${error}`);
-    }
-}
-
-async function handleTabsQuery(this: Browser, tabs: Tab[]) {
-    try {
-        const messageResult = await this.tabs.sendMessage(tabs[0].id!, {
-            ...updateInfo,
-            text: "This text content is from Reader Mode extension for Firefox."
-        });
-
-        if (typeof messageResult != "undefined") {
-            console.log("Message has been sent to content script");
+        if (typeof response != "undefined") {
+            console.info("Message has been sent to reader script");
         }
         else {
-            console.warn("Could not send message to content script");
+            console.warn("No response received from reader script");
         }
     }
     catch (error) {
-        console.error(`Error sending message to content script. ${error}`);
+        if (!(error instanceof Error)) throw error;
+        console.error(`Error sending message. ${error.message}`);
     }
 }
 
