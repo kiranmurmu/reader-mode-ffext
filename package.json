@@ -2,7 +2,7 @@
     "name": "reader-mode-ffext",
     "version": "1.0.0",
     "displayName": "Reader Mode",
-    "description": "Reader Mode extention for Firefox",
+    "description": "Reader Mode extension for Firefox",
     "type": "module",
     "main": "index.ts",
     "scripts": {

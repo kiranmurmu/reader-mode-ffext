@@ -21,7 +21,7 @@ interface MessageData {
     title?: string;
     url?: string;
     favIconUrl?: string;
-    article?: Article | null;
+    article?: Article;
 }
 
 type MessageSender = Runtime.MessageSender;
@@ -33,27 +33,30 @@ type ResponseCallback = (response: unknown) => void;
     }
 
     function handleMessageEvent(message: MessageData, _sender: MessageSender, sendResponse: ResponseCallback) {
-        location.hash = `!${message.url}`;
-        document.title = message.title!;
-        document.body.textContent = "";
+        const { title, url, favIconUrl, article } = message;
+        const { parentNode } = document.documentElement;
+
+        const documentElement = document.implementation.createHTMLDocument(title);
+        const documentType = document.implementation.createDocumentType("html", "", "");
+        const favIcon = document.createElement("link");
+        const heading = document.createElement("h1");
+        const container = document.createElement("div");
 
         try {
-            if (message.favIconUrl) {
-                const favIconUrl = document.createElement("link");
-                favIconUrl.rel = "shortcut icon";
-                favIconUrl.href = message.favIconUrl;
-                document.head.appendChild(favIconUrl);
-            }
+            favIcon.rel = "shortcut icon";
+            favIcon.href = favIconUrl!;
+            documentElement.head.appendChild(favIcon);
 
-            const { content, title } = message.article!;
-            const htmlHeadingElement = document.createElement("h1");
-            const htmlDivElement = document.createElement("div");
+            heading.textContent = article!.title;
+            container.innerHTML = article!.content;
+            container.className = "container"
+            container.insertBefore(heading, container.firstChild);
 
-            htmlHeadingElement.textContent = title;
-            document.body.appendChild(htmlHeadingElement);
+            documentElement.body.appendChild(container);
+            documentElement.documentElement.setAttribute("lang", "en-US");
 
-            htmlDivElement.innerHTML = content;
-            document.body.appendChild(htmlDivElement.firstChild!);
+            parentNode!.insertBefore(documentType, document.documentElement);
+            parentNode!.replaceChild(documentElement.documentElement, document.documentElement);
         }
         catch (error) {
             if (error instanceof Error) {
@@ -62,6 +65,9 @@ type ResponseCallback = (response: unknown) => void;
             else {
                 sendResponse(error);
             }
+        }
+        finally {
+            location.hash = `!${url}`;
         }
     }
 
