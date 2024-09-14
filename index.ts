@@ -4,41 +4,49 @@ import fs from "node:fs";
 import { displayName, version, description } from "./package.json";
 import type { WebExtensionManifest } from "firefox-webext-browser/_manifest";
 
-type Info = { fileType: string; sourceDir: string[]; targetDir: string[]; };
-type Data = Pick<Info, "targetDir"> & { fileName: string; sourceFile: string; targetFile: string; };
+interface MetaData {
+    fileType: string;
+    sourceDir: string[];
+    targetDir: string[];
+};
+
+interface MapData extends Pick<MetaData, "targetDir"> {
+    fileName: string;
+    sourceFile: string;
+    targetFile: string;
+};
 
 const currentDir = process.cwd();
 
-class DataMap<Key extends string> extends Map<Key, Data> {
-    constructor(entries: { [_ in Key]: Info }) {
+class DataMap<Key extends string> extends Map<Key, MapData> {
+    constructor(entries: Record<Key, MetaData>) {
         super(toMapEntry<Key>(entries));
     }
     
     toObject() {
-        type DataObj = { [_ in Key]: Data; };
-        return Object.fromEntries(this.entries()) as Readonly<DataObj>;
+        return Object.fromEntries(this.entries()) as Record<Key, MapData>;
     };
 }
 
-function toMapEntry<Key>(entry: { [_: string]: Info; }) {
-    const entries = Object.entries<Info>(entry);
+function toMapEntry<Key>(entry: Record<string, MetaData>) {
+    const entries = Object.entries<MetaData>(entry);
 
-    const callback = ([keyName, { fileType, sourceDir, targetDir }]: [string, Info]) => {
+    const callback = ([keyName, { fileType, sourceDir, targetDir }]: [string, MetaData]) => {
         const fileName = `${keyName}.${fileType}`;
-        const dataObj: Data = {
+        const dataObj: MapData = {
             fileName,
             targetDir,
             sourceFile: path.join(currentDir, ...sourceDir, fileName),
             targetFile: path.join(currentDir, ...targetDir, fileName),
         };
 
-        return [keyName, dataObj] as [Key, Data];
+        return [keyName, dataObj] as [Key, MapData];
     }
 
     return entries.map(callback);
 };
 
-function createDirectory({ targetDir }: Data) {
+function createDirectory({ targetDir }: MapData) {
     let parentDir = currentDir;
 
     for (const dirName of targetDir) {
@@ -85,7 +93,9 @@ const extension: WebExtensionManifest = {
     }
 };
 
-(Object.entries(dataMap) as [keyof typeof dataMap, Data][]).forEach(([key, data]) => {
+type MapEntry = Array<[keyof typeof dataMap, MapData]>;
+
+(Object.entries(dataMap) as MapEntry).forEach(([key, data]) => {
     createDirectory(data);
 
     if (key === "manifest") {
