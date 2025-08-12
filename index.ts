@@ -86,7 +86,8 @@ const extension: WebExtensionManifest = {
     permissions: [
         "contextMenus",
         "activeTab",
-        "tabs"
+        "tabs",
+        "webNavigation"
     ],
     background: {
         "page": dataMap["background"].fileName,

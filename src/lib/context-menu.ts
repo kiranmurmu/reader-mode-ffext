@@ -1,6 +1,7 @@
 import type { Browser } from "firefox-webext-browser";
-import type { _OnUpdatedChangeInfo as ChangeInfo, Tab } from "firefox-webext-browser/tabs";
+import type { _OnUpdatedChangeInfo as ChangeInfo, _OnRemovedRemoveInfo as RemoveInfo, Tab } from "firefox-webext-browser/tabs";
 import type { _CreateCreateProperties as CreateProps, OnClickData } from "firefox-webext-browser/contextMenus";
+import type { _OnBeforeNavigateDetails as NavigateDetails } from "firefox-webext-browser/webNavigation";
 import type { InjectDetails } from "firefox-webext-browser/extensionTypes";
 
 interface MenuProps extends Omit<CreateProps, "id" | "title"> {
@@ -20,11 +21,11 @@ interface ReaderData {
 
 const current: Record<number, ReaderData> = {};
 const aboutBlank = "about:blank";
+const aboutReader = `${aboutBlank}#reader-mode`;
 
-const openInReaderMode = createMenuItem({
-    title: "Open in Reader Mode",
+const toggleReaderMode = createMenuItem({
+    title: "Toggle Reader Mode",
     contexts: ["page"],
-    documentUrlPatterns: ["*://*/*"]
 });
 
 function createMenuItem(props: MenuProps) {
@@ -34,9 +35,8 @@ function createMenuItem(props: MenuProps) {
 }
 
 function handleMenuCreate(this: Browser) {
-    console.info(`Context Menu created: ${openInReaderMode.id}`);
-
-    return this.contextMenus.create(openInReaderMode);
+    console.info(`Context Menu created: ${toggleReaderMode.id}`);
+    this.contextMenus.create(toggleReaderMode);
 }
 
 async function executeScript(this: Browser, tabId: number, details: InjectDetails) {
@@ -82,13 +82,18 @@ async function openAboutBlank(this: Browser, tabId: number) {
 }
 
 async function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | undefined) {
-    if (info.menuItemId !== openInReaderMode.id || !tab) {
+    if (info.menuItemId !== toggleReaderMode.id || !tab) {
         return;
     }
 
     const { id: tabId, title, url: _url, favIconUrl } = tab;
     const url = _url!.replace(/\/$/g, "");
     const scripts = ["lib/Readability.js", "lib/content-script.js"];
+
+    if (url.startsWith(aboutReader)) {
+        this.tabs.goBack(tabId);
+        return;
+    }
 
     try {
         for (const script of scripts) {
@@ -115,6 +120,25 @@ async function handleMenuClick(this: Browser, info: OnClickData, tab: Tab | unde
         else {
             console.error(message, error);
         }
+    }
+}
+
+async function handleTabNavigate(this: Browser, details: NavigateDetails) {
+    const isAboutReader = details.url.startsWith(aboutReader);
+
+    if (isAboutReader) {
+        await this.tabs.update({
+            url: aboutBlank,
+            loadReplace: true,
+        });
+        console.info("Reader Mode replaced:", details.tabId);
+    }
+}
+
+async function handleTabRemove(this: Browser, tabId: number, _removeInfo: RemoveInfo) {
+    if (typeof current[tabId] != "undefined") {
+        delete current[tabId];
+        console.info("Reader Mode cleared:", tabId);
     }
 }
 
@@ -154,9 +178,6 @@ async function handleTabsUpdate(this: Browser, tabId: number, changeInfo: Change
             console.error(message, error);
         }
     }
-    finally {
-        delete current[tabId];
-    }
 }
 
-export { handleMenuCreate, handleMenuClick, handleTabsUpdate, aboutBlank };
+export { handleMenuCreate, handleMenuClick, handleTabsUpdate, handleTabRemove, handleTabNavigate, aboutBlank };

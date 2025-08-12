@@ -42,14 +42,17 @@ type ResponseCallback = (response: unknown) => void;
         const heading = document.createElement("h1");
         const container = document.createElement("div");
 
+        location.hash = `reader-mode?url=${url}`;
+
         try {
             favIcon.rel = "shortcut icon";
             favIcon.href = favIconUrl!;
             documentElement.head.appendChild(favIcon);
 
+            heading.id = "readability-title";
             heading.textContent = article!.title;
             container.innerHTML = article!.content;
-            container.className = "container"
+            container.className = "readability-container";
             container.insertBefore(heading, container.firstChild);
 
             documentElement.body.appendChild(container);
@@ -65,9 +68,6 @@ type ResponseCallback = (response: unknown) => void;
             else {
                 sendResponse(error);
             }
-        }
-        finally {
-            location.hash = `!${url}`;
         }
     }
 
